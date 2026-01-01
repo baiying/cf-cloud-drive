@@ -3,9 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { files } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-
-export const runtime = 'edge';
+import { AwsClient } from 'aws4fetch';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ fileId: string }> }) {
   try {
@@ -39,32 +37,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ file
       return new NextResponse('Server configuration error: Missing R2 credentials', { status: 500 });
     }
 
-    const S3 = new S3Client({
+    const r2 = new AwsClient({
+      accessKeyId,
+      secretAccessKey,
+      service: 's3',
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
     });
 
     // Fetch from R2
-    const command = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: fileRecord.r2Key,
-    });
-
+    const url = `https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${fileRecord.r2Key}`;
+    
     try {
-      const response = await S3.send(command);
+      const response = await r2.fetch(url);
       
-      if (!response.Body) {
-        return new NextResponse('Empty file', { status: 404 });
+      if (!response.ok) {
+         if (response.status === 404) {
+             return new NextResponse('File not found in storage', { status: 404 });
+         }
+         throw new Error(`R2 fetch failed: ${response.status} ${response.statusText}`);
       }
 
-      // Convert the stream to a Web ReadableStream
-      const stream = response.Body.transformToWebStream();
-
-      return new NextResponse(stream, {
+      return new NextResponse(response.body, {
         headers: {
           'Content-Type': fileRecord.mimeType || 'application/octet-stream',
           'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year

@@ -14,7 +14,13 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'fs': false, // Force fs to resolve to nothing
+      };
+    }
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,

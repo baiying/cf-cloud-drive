@@ -3,10 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { files } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-
-export const runtime = 'edge';
+import { AwsClient } from 'aws4fetch';
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,24 +41,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'R2 configuration missing' }, { status: 500 });
     }
 
-    const S3 = new S3Client({
+    const r2 = new AwsClient({
+      accessKeyId,
+      secretAccessKey,
+      service: 's3',
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
     });
 
-    const command = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: fileRecord.r2Key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(fileRecord.name)}"`,
+    const url = new URL(`https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${fileRecord.r2Key}`);
+    url.searchParams.set('X-Amz-Expires', '3600'); // 1 hour
+    url.searchParams.set('response-content-disposition', `attachment; filename="${encodeURIComponent(fileRecord.name)}"`);
+
+    const signed = await r2.sign(new Request(url, {
+      method: 'GET',
+    }), {
+      aws: { signQuery: true },
     });
 
-    const url = await getSignedUrl(S3, command, { expiresIn: 3600 }); // 1 hour
-
-    return NextResponse.json({ url });
+    return NextResponse.json({ url: signed.url });
 
   } catch (error) {
     console.error('Download error:', error);
