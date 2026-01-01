@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "preview": "npm run build && npx opennextjs-cloudflare && wrangler dev",
-    "deploy": "npm run build && npx opennextjs-cloudflare && wrangler deploy",
+    "preview": "npm run build && npx opennextjs-cloudflare build && npx wrangler dev",
+    "deploy": "npm run build && npx opennextjs-cloudflare build && npx wrangler deploy",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
