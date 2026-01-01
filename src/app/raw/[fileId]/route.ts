@@ -5,6 +5,8 @@ import { files } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
+export const runtime = 'edge';
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ fileId: string }> }) {
   try {
     const { fileId } = await params;

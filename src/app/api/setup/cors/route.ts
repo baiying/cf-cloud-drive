@@ -2,6 +2,8 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutBucketCorsCommand } from '@aws-sdk/client-s3';
 
+export const runtime = 'edge';
+
 export async function GET() {
   try {
     const { env } = getCloudflareContext();
